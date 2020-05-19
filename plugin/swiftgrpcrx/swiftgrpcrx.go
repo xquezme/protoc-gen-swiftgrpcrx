@@ -72,20 +72,23 @@ func (g *swiftgrpcrx) methodTypeName(methodType string) string {
 // generateService generates all the code for the named service.
 func (g *swiftgrpcrx) generateService(file *generator.FileDescriptor, service *pb.ServiceDescriptorProto, index int) {
 	origServName := service.GetName()
-	servName := generator.CamelCase(origServName)
-	servAlias := servName + "Service"
+	packagePrefix := ""
+	if pkg := file.GetPackage(); pkg != "" {
+		packagePrefix = generator.CamelCase(pkg + "_")
+	}
+	servName := packagePrefix + generator.CamelCase(origServName)
 
-	g.P("internal extension ", servName, "_", servAlias, "Client {")
+	g.P("public extension ", servName, "ServiceClient {")
 	g.P()
 
 	for _, method := range service.Method {
 		if !method.GetServerStreaming() {
 			// Unary RPC method
 			methodName := strings.ToLower((*method.Name)[:1]) + (*method.Name)[1:]
-			inputTypeName := servName + "_" + g.typeName(*method.InputType)
-			outputTypeName := servName + "_" + g.typeName(*method.OutputType)
+			inputTypeName := packagePrefix + g.typeName(*method.InputType)
+			outputTypeName := packagePrefix + g.typeName(*method.OutputType)
 			g.P("  /// RxSwift. Unary.")
-			g.P("  internal func ", methodName, "(_ request: ", inputTypeName, ", metadata customMetadata: Metadata?) -> Observable<", outputTypeName, "> {")
+			g.P("  public func ", methodName, "(_ request: ", inputTypeName, ", metadata customMetadata: Metadata?) -> Observable<", outputTypeName, "> {")
 			g.P("    return Observable.create { observer in")
 			g.P("      _ = try? self.", methodName, "(request, metadata: customMetadata ?? self.metadata, completion: { resp, result in")
 			g.P("        guard let resp: ", outputTypeName, " = resp else {")
